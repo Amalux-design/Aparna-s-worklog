@@ -92,3 +92,28 @@ git push -u origin master
   completed job.
 - **Payments** — earnings summary cards, monthly or per-client breakdown,
   one-tap "Mark as Paid" on pending items.
+
+## Performance: caching & indexing
+
+Apps Script + Sheets is the slowest link in this stack (cold starts, full-sheet
+scans), so both ends are optimized around it:
+
+- **Instant reload (frontend):** `LogsProvider` ([src/context/LogsContext.tsx](./src/context/LogsContext.tsx))
+  persists the last-known log list to `localStorage`. On the next app open it
+  paints that cached data immediately (no spinner) and revalidates against the
+  API in the background — stale-while-revalidate, so the UI never blocks on
+  the network for a repeat visit.
+- **Fast indexing (frontend):** the same provider builds `logsByDate` and
+  `logsByMonth` lookup maps once per data change (`O(n)`), which every page
+  reuses instead of each one re-scanning the full log array with its own
+  `filter`/`find` pass. Calendar's month view and Logs' date grouping are both
+  `O(1)` map lookups now.
+- **Optimistic writes:** delete and "Mark as Paid" update local state
+  immediately and roll back only if the API call fails, so those actions feel
+  instant instead of waiting on a round trip.
+- **Server-side caching:** `getLogs()` in `Code.gs` is cached with
+  `CacheService` for up to 6 hours and invalidated on every write made through
+  the app, so the full-sheet read + sort only happens once per cache window
+  instead of on every request. See the caching note in
+  [`apps-script/README.md`](./apps-script/README.md) for the one caveat
+  (manual edits made directly in the Sheet UI).

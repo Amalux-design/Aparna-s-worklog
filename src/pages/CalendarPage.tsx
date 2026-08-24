@@ -4,11 +4,11 @@ import { useLogs } from "../context/LogsContext";
 import { CalendarGrid } from "../components/CalendarGrid";
 import { DaySheet } from "../components/DaySheet";
 import { LogForm } from "../components/LogForm";
-import { monthLabel, monthKey } from "../utils/format";
+import { monthLabel } from "../utils/format";
 import type { CalendarData, WorkLog, WorkLogInput } from "../types";
 
 export function CalendarPage() {
-  const { logs, loading, error, addLog, editLog } = useLogs();
+  const { loading, error, addLog, editLog, logsByMonth } = useLogs();
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
@@ -19,16 +19,16 @@ export function CalendarPage() {
 
   const calendarData: CalendarData = useMemo(() => {
     const key = `${year}-${String(month + 1).padStart(2, "0")}`;
+    const monthLogs = logsByMonth.get(key) ?? [];
     const data: CalendarData = {};
-    for (const log of logs) {
-      if (monthKey(log.date) !== key) continue;
+    for (const log of monthLogs) {
       if (!data[log.date]) data[log.date] = { status: log.status, logs: [] };
       const entry = data[log.date];
       entry.logs.push(log);
       if (entry.status !== log.status) entry.status = "MIXED";
     }
     return data;
-  }, [logs, year, month]);
+  }, [logsByMonth, year, month]);
 
   function goToMonth(delta: number) {
     const d = new Date(year, month + delta, 1);

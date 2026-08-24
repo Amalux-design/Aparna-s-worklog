@@ -7,19 +7,17 @@ import { formatDateHeading } from "../utils/format";
 import type { WorkLog, WorkLogInput } from "../types";
 
 export function LogsPage() {
-  const { logs, loading, error, addLog, editLog, removeLog } = useLogs();
+  const { logs, loading, error, addLog, editLog, removeLog, logsByDate } = useLogs();
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState<WorkLog | null>(null);
 
-  const grouped = useMemo(() => {
-    const groups: { date: string; items: WorkLog[] }[] = [];
-    for (const log of logs) {
-      const g = groups.find((g) => g.date === log.date);
-      if (g) g.items.push(log);
-      else groups.push({ date: log.date, items: [log] });
-    }
-    return groups;
-  }, [logs]);
+  // logs (and therefore logsByDate's insertion order) already come back
+  // date-desc from the API, so a direct map iteration preserves that order
+  // without an O(n²) find-based grouping pass.
+  const grouped = useMemo(
+    () => Array.from(logsByDate.entries()).map(([date, items]) => ({ date, items })),
+    [logsByDate]
+  );
 
   async function handleDelete(id: string) {
     if (confirm("Delete this log entry?")) {

@@ -26,6 +26,41 @@ var HEADERS = [
   "notes", "createdAt", "updatedAt",
 ];
 
+// getLogs() reads and re-sorts the whole sheet on every call, which is the
+// slowest part of every request. Cache the computed result and only pay that
+// cost again after a write (create/update/delete) invalidates it. Any edit
+// made directly in the Sheet UI (not through the app) won't invalidate this —
+// it'll show up within CACHE_TTL_SECONDS at worst.
+var CACHE_KEY = "work_logs_v1";
+var CACHE_TTL_SECONDS = 21600; // 6 hours — CacheService's max
+
+function getCachedLogs() {
+  try {
+    var cached = CacheService.getScriptCache().get(CACHE_KEY);
+    return cached ? JSON.parse(cached) : null;
+  } catch (err) {
+    return null;
+  }
+}
+
+function setCachedLogs(logs) {
+  try {
+    CacheService.getScriptCache().put(CACHE_KEY, JSON.stringify(logs), CACHE_TTL_SECONDS);
+  } catch (err) {
+    // Cache write can fail (e.g. payload over the 100KB-per-key limit) — the
+    // cache is a pure optimization, so just skip it and read from the sheet
+    // directly next time.
+  }
+}
+
+function invalidateLogsCache() {
+  try {
+    CacheService.getScriptCache().remove(CACHE_KEY);
+  } catch (err) {
+    // no-op
+  }
+}
+
 function doGet(e) {
   return route(e);
 }
@@ -141,6 +176,9 @@ function getAllRows() {
 }
 
 function getLogs() {
+  var cached = getCachedLogs();
+  if (cached) return cached;
+
   var rows = getAllRows();
   var logs = rows.map(rowToObject);
   logs.sort(function (a, b) {
@@ -148,6 +186,7 @@ function getLogs() {
     if (a.date > b.date) return -1;
     return 0;
   });
+  setCachedLogs(logs);
   return logs;
 }
 
@@ -175,6 +214,7 @@ function createLog(input) {
   };
   sheet.appendRow(objectToRow(log));
   forceTextFormat(sheet, sheet.getLastRow());
+  invalidateLogsCache();
   return log;
 }
 
@@ -214,6 +254,7 @@ function updateLog(input) {
 
   sheet.getRange(rowIndex, 1, 1, HEADERS.length).setValues([objectToRow(updated)]);
   forceTextFormat(sheet, rowIndex);
+  invalidateLogsCache();
   return updated;
 }
 
@@ -222,6 +263,7 @@ function deleteLog(input) {
   var rowIndex = findRowIndexById(input.id);
   if (rowIndex === -1) throw new Error("Log not found: " + input.id);
   sheet.deleteRow(rowIndex);
+  invalidateLogsCache();
   return { success: true };
 }
 
