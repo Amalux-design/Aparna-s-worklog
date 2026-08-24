@@ -10,7 +10,7 @@ export function formatCurrency(amount: number): string {
 }
 
 export function formatDateHeading(isoDate: string): string {
-  const d = new Date(isoDate + "T00:00:00");
+  const d = new Date(isoDate.slice(0, 10) + "T00:00:00");
   return d.toLocaleDateString(CURRENCY_LOCALE, {
     month: "short",
     day: "numeric",
