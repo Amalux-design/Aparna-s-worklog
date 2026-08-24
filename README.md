@@ -42,6 +42,38 @@ to try it out. A "Demo mode" banner shows at the top when this fallback is activ
 | ------------------------ | -------------------------------------------------------- |
 | `VITE_APPS_SCRIPT_URL`   | Deployed Apps Script Web App URL. Omit to use mock data. |
 
+`.env` is git-ignored — it holds your real Apps Script URL and is never pushed.
+`.env.example` is the committed template; copy it to `.env` locally and fill in the real value.
+
+## Deploying
+
+### Push to GitHub
+
+```bash
+git add .
+git commit -m "Deploy setup"
+git push -u origin master
+```
+
+(`.env` won't be included — it's in `.gitignore`.)
+
+### Deploy on Vercel
+
+1. Go to [vercel.com/new](https://vercel.com/new) and import the GitHub repo.
+2. Vercel auto-detects Vite (`vercel.json` in this repo pins the build command
+   `npm run build` and output directory `dist` as a fallback).
+3. Before the first deploy (or after, under **Project → Settings → Environment
+   Variables**), add:
+
+   | Key | Value |
+   | --- | --- |
+   | `VITE_APPS_SCRIPT_URL` | your deployed Apps Script Web App URL |
+
+   Without this, the deployed app runs in mock/demo mode — same as local dev
+   without a `.env`.
+4. Deploy. Any push to the connected branch redeploys automatically; changing
+   the env var requires a redeploy (**Deployments → ⋯ → Redeploy**) to take effect.
+
 ## Tech stack
 
 - Vite + React 18 + TypeScript (strict)
