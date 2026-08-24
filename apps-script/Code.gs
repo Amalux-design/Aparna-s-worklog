@@ -92,11 +92,32 @@ function getSheet() {
   return sheet;
 }
 
+// Sheets auto-converts strings that look like dates/times (e.g. "2026-08-16",
+// "17:00") into real Date values when typed or pasted in. getValues() then
+// hands those back as JS Date objects, which JSON.stringify turns into
+// UTC timestamps — shifting the day and breaking the app's "YYYY-MM-DD" /
+// "HH:mm" string matching. Normalize back to plain strings using the sheet's
+// own timezone so nothing shifts.
+function formatDateCell(value) {
+  if (!(value instanceof Date)) return value;
+  var tz = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone();
+  return Utilities.formatDate(value, tz, "yyyy-MM-dd");
+}
+
+function formatTimeCell(value) {
+  if (!(value instanceof Date)) return value;
+  var tz = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone();
+  return Utilities.formatDate(value, tz, "HH:mm");
+}
+
 function rowToObject(row) {
   var obj = {};
   for (var i = 0; i < HEADERS.length; i++) {
     obj[HEADERS[i]] = row[i];
   }
+  obj.date = formatDateCell(obj.date);
+  obj.startTime = formatTimeCell(obj.startTime) || "";
+  obj.endTime = formatTimeCell(obj.endTime) || "";
   obj.amount = Number(obj.amount);
   obj.qty = Number(obj.qty) || 1;
   obj.price = Number(obj.price) || obj.amount;
@@ -153,7 +174,17 @@ function createLog(input) {
     updatedAt: now,
   };
   sheet.appendRow(objectToRow(log));
+  forceTextFormat(sheet, sheet.getLastRow());
   return log;
+}
+
+// Locks the date/startTime/endTime cells of a row to plain-text format so
+// Sheets stops auto-converting "2026-08-16" / "17:00" into Date values,
+// which is what breaks date matching in the app (see formatDateCell above).
+function forceTextFormat(sheet, rowIndex) {
+  sheet.getRange(rowIndex, 2).setNumberFormat("@"); // date
+  sheet.getRange(rowIndex, 13).setNumberFormat("@"); // startTime
+  sheet.getRange(rowIndex, 14).setNumberFormat("@"); // endTime
 }
 
 function findRowIndexById(id) {
@@ -182,6 +213,7 @@ function updateLog(input) {
   updated.amount = Number(updated.amount);
 
   sheet.getRange(rowIndex, 1, 1, HEADERS.length).setValues([objectToRow(updated)]);
+  forceTextFormat(sheet, rowIndex);
   return updated;
 }
 
