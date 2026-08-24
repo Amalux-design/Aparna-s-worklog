@@ -19,7 +19,12 @@ export function BottomNav() {
         >
           {({ isActive }) => (
             <>
-              <Icon size={22} strokeWidth={2} fill={isActive ? "currentColor" : "none"} />
+              <Icon
+                size={22}
+                strokeWidth={2}
+                fill={isActive ? "currentColor" : "none"}
+                stroke={isActive ? "var(--color-surface)" : "currentColor"}
+              />
               <span>{label}</span>
             </>
           )}
